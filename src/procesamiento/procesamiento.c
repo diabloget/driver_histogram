@@ -7,6 +7,13 @@
 #include <sys/stat.h>
 #include <time.h>
 
+void print_mascara(int* mascara_sobel) {
+    printf("[TEST] Mascara Sobel recibida: \n");
+    printf("\t%2d %2d %2d\n", mascara_sobel[0], mascara_sobel[1], mascara_sobel[2]);
+    printf("\t%2d %2d %2d\n", mascara_sobel[3], mascara_sobel[4], mascara_sobel[5]);
+    printf("\t%2d %2d %2d\n", mascara_sobel[6], mascara_sobel[7], mascara_sobel[8]);
+}
+
 metrics_node procesar_porcion(unsigned char* porcion_imagen, int alto, int ancho, int* mascara_sobel, double latencia_red) {
     // 1. Inicializar metricas
     metrics_node metricas = {0.0, 0.0, 0.0, 0.0};
@@ -14,7 +21,6 @@ metrics_node procesar_porcion(unsigned char* porcion_imagen, int alto, int ancho
     // Inicio Calculo de metricas
     // Latencia de red
     metricas.network_latency_t = latencia_red;
-
     // Datos transferidos (porcion de imagen recibida)
     size_t bytes_imagen = (size_t)alto * (size_t)ancho * sizeof(unsigned char);
     size_t bytes_mascara = 9 * sizeof(unsigned char);
@@ -23,13 +29,10 @@ metrics_node procesar_porcion(unsigned char* porcion_imagen, int alto, int ancho
     // 2. Iniciar el temporizador
     clock_t inicio = clock();
 
-    printf("[TEST] Imagen (porcion) recibida: \n");
+    // printf("[TEST] Imagen (porcion) recibida: \n");
     // imprimir_matriz(porcion_imagen, alto, ancho);
 
-    printf("[TEST] Mascara Sobel recibida: \n");
-    printf("\t%2d %2d %2d\n", mascara_sobel[0], mascara_sobel[1], mascara_sobel[2]);
-    printf("\t%2d %2d %2d\n", mascara_sobel[3], mascara_sobel[4], mascara_sobel[5]);
-    printf("\t%2d %2d %2d\n", mascara_sobel[6], mascara_sobel[7], mascara_sobel[8]);
+    print_mascara(mascara_sobel);
 
     // INICIO DE LA LOGIA DE CONVOLUCION
     // 1. Reservar memoria para la imagen de resultado
@@ -44,7 +47,7 @@ metrics_node procesar_porcion(unsigned char* porcion_imagen, int alto, int ancho
         for (int j = 1; j < ancho - 1; j++) {
             int suma_parcial = 0;
 
-            // 3. Aplicar el kernel/mascara de 3x3
+            // 3. Aplicar el mascara de 3x3
             for (int ki = -1; ki <= 1; ki++) {
                 for (int kj = -1; kj <= 1; kj++) {
                     // (i + ki) y (j + kj) son las coordenadas del pixel de la imagen original
@@ -59,7 +62,7 @@ metrics_node procesar_porcion(unsigned char* porcion_imagen, int alto, int ancho
         }
     }
 
-    printf("[TEST] Resultado (Convolucion): \n");
+    // printf("[TEST] Resultado (Convolucion): \n");
     // imprimir_matriz_int(resultado_sobel, alto, ancho);
     guardar_resultado_txt(resultado_sobel, alto, ancho);
     free(resultado_sobel);

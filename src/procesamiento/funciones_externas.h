@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#define DIR_RESULTADOS "archivos/"
+#define DIR_RESULTADOS "../archivos/" // Quitar ../ cuando se use en produccion
 #define NOMBRE_ARCHIVO_SALIDA "resultado_sobel.txt"
 #define NOMBRE_ARCHIVO_ENTRADA "matriz_test.txt"
 
@@ -15,5 +15,9 @@ void imprimir_matriz_int(int* matriz, int alto, int ancho);
 // Funcion de prueba para generar un archivo de matriz de prueba
 void generar_archivo_matriz_test(int alto, int ancho);
 int leer_archivo_matriz_test(unsigned char* buffer, int alto, int ancho);
+
+// Funciones de prueba para cargar una imagen JPEG, y aplicar filtro sobel
+int guardar_imagen_gris_en_matriz_test(const char* nombre_imagen, int alto, int ancho);
+int convertir_resultado_txt_a_jpg(const char* nombre_salida_jpg);
 
 #endif //TEST_FUNCIONES_EXTERNAS_H

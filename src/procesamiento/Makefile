@@ -1,6 +1,7 @@
 # Makefile para el proyecto driver_histogram
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -O2 -g
+LIBS = -ljpeg
 SRC := $(wildcard *.c)
 OBJDIR := obj
 OBJ := $(patsubst %.c,$(OBJDIR)/%.o,$(SRC))
@@ -13,7 +14,7 @@ all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	@mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 $(OBJDIR)/%.o: %.c $(DEPS)
 	@mkdir -p $(OBJDIR)
