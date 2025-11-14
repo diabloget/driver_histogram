@@ -14,7 +14,7 @@ void make_input_txt(int height, int width);
 
 // Funciones para guardar y leer archivos de matriz
 void save_output_txt(int *matrix, int height, int width);
-int read_input_txt(unsigned char *buffer, int height, int width);
+int read_input_txt(unsigned char **buffer, int *height, int *width);
 
 // Funciones para imprimir matrices en consola
 void display_matrix(unsigned char *matrix, int height, int width);

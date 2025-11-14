@@ -45,7 +45,7 @@ static void *worker_conv(void *arg)
 #ifdef __linux__
     cpu_before = sched_getcpu();
 #endif
-    printf("\t[THREAD %2d] inicio rows %d..%d (cpu=%d)\n", tid, a->start_row, a->end_row, cpu_before);
+    printf("\t[THREAD %2d] rows %4d..%4d (cpu=%2d) -> INICIO\n", tid, a->start_row, a->end_row, cpu_before);
     for (int i = a->start_row; i <= a->end_row; i++)
     {
         for (int j = 0; j < a->width; j++)
@@ -68,7 +68,7 @@ static void *worker_conv(void *arg)
 #ifdef __linux__
     cpu_after = sched_getcpu();
 #endif
-    printf("\t[THREAD %2d] fin rows %d..%d (cpu=%d)\n", tid, a->start_row, a->end_row, cpu_after);
+    printf("\t[THREAD %2d] rows %4d..%4d (cpu=%2d) -> FINAL\n", tid, a->start_row, a->end_row, cpu_after);
     return NULL;
 }
 
