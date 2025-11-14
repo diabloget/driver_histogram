@@ -1,5 +1,5 @@
-#include "procesamiento.h"
-#include "funciones_externas.h"
+#include "process.h"
+#include "external_functions.h"
 
 #include <stdio.h>
 #include <stdlib.h>

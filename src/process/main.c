@@ -1,5 +1,5 @@
-#include "procesamiento.h"
-#include "funciones_externas.h"
+#include "process.h"
+#include "external_functions.h"
 #include "metrics.h"
 
 #include <stdio.h>
@@ -75,7 +75,7 @@ int main(void)
 
     test_img();
 
-    // test_matriz();
+    test_matriz();
 
     return 0;
 }

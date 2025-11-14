@@ -1,5 +1,5 @@
-#ifndef TEST_METRICS_H
-#define TEST_METRICS_H
+#ifndef METRICS_H
+#define METRICS_H
 
 
 typedef struct {
@@ -11,4 +11,4 @@ typedef struct {
 
 void print_metrics(metrics_node metrics);
 
-#endif //TEST_METRICS_H
+#endif //METRICS_H

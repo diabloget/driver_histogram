@@ -1,11 +1,11 @@
-#ifndef TEST_FUNCIONES_EXTERNAS_H
-#define TEST_FUNCIONES_EXTERNAS_H
+#ifndef EXTERNAL_FUNCTIONS_H
+#define EXTERNAL_FUNCTIONS_H
 
 #include <stdio.h>
 
-#define DIR_RESULTADOS "../files/" // Quitar ../ cuando se use en produccion
-#define NOMBRE_ARCHIVO_SALIDA "output.txt"
-#define NOMBRE_ARCHIVO_ENTRADA "input.txt"
+#define DIR_FILES "../files/" // Quitar ../ cuando se use en produccion
+#define OUTPUT_FILE "output.txt"
+#define INPUT_FILE "input.txt"
 
 void make_files_directory();
 
@@ -24,4 +24,4 @@ void display_int_matrix(int *matrix, int height, int width);
 int save_img_in_txt(const char *img_name, int height, int width);
 int convert_txt_to_jpg(const char *img_name);
 
-#endif // TEST_FUNCIONES_EXTERNAS_H
+#endif // EXTERNAL_FUNCTIONS_H

@@ -1,4 +1,4 @@
-#include "funciones_externas.h"
+#include "external_functions.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,25 +13,25 @@ void make_files_directory() {
     struct stat st = {0};
 
     // Verificar si el directorio ya existe
-    if (stat(DIR_RESULTADOS, &st) == -1) {
+    if (stat(DIR_FILES, &st) == -1) {
         // Crear el directorio
-        if (mkdir(DIR_RESULTADOS, 0777) == -1) {
-            printf("[HELPER] ERROR: No se pudo crear el directorio %s: %s\n", DIR_RESULTADOS, strerror(errno));
+        if (mkdir(DIR_FILES, 0777) == -1) {
+            printf("[HELPER] ERROR: No se pudo crear el directorio %s: %s\n", DIR_FILES, strerror(errno));
             return;
         }
-        printf("[HELPER] Directorio %s creado exitosamente.\n", DIR_RESULTADOS);
+        printf("[HELPER] Directorio %s creado exitosamente.\n", DIR_FILES);
     } else {
-        printf("[HELPER] El directorio %s ya existe.\n", DIR_RESULTADOS);
+        printf("[HELPER] El directorio %s ya existe.\n", DIR_FILES);
     }
 }
 
 void make_input_txt(int height, int width) {
-    printf("[HELPER] Generando archivo de prueba %s...\n", NOMBRE_ARCHIVO_ENTRADA);
+    printf("[HELPER] Generando archivo de prueba %s...\n", INPUT_FILE);
     make_files_directory();
 
-    FILE *f = fopen(DIR_RESULTADOS NOMBRE_ARCHIVO_ENTRADA, "w");
+    FILE *f = fopen(DIR_FILES INPUT_FILE, "w");
     if (f == NULL) {
-        printf("[HELPER] ERROR: No se pudo crear el archivo de prueba %s: %s\n", NOMBRE_ARCHIVO_ENTRADA, strerror(errno));
+        printf("[HELPER] ERROR: No se pudo crear el archivo de prueba %s: %s\n", INPUT_FILE, strerror(errno));
         return;
     }
 
@@ -45,14 +45,14 @@ void make_input_txt(int height, int width) {
     }
 
     fclose(f);
-    printf("[HELPER] Archivo de prueba %s generado exitosamente.\n", NOMBRE_ARCHIVO_ENTRADA);
+    printf("[HELPER] Archivo de prueba %s generado exitosamente.\n", INPUT_FILE);
 }
 
 void save_output_txt(int *matrix, int height, int width) {
     make_files_directory();
 
     char file_name[PATH_MAX];
-    sprintf(file_name, "%s%s", DIR_RESULTADOS, NOMBRE_ARCHIVO_SALIDA);
+    sprintf(file_name, "%s%s", DIR_FILES, OUTPUT_FILE);
 
     FILE *f = fopen(file_name, "w");
 
@@ -78,14 +78,14 @@ void save_output_txt(int *matrix, int height, int width) {
 }
 
 int read_input_txt(unsigned char *buffer, int height, int width) {
-    printf("[HELPER] Leyendo matriz del archivo %s...\n", NOMBRE_ARCHIVO_ENTRADA);
+    printf("[HELPER] Leyendo matriz del archivo %s...\n", INPUT_FILE);
 
     char file_name[PATH_MAX];
-    sprintf(file_name, "%s%s", DIR_RESULTADOS, NOMBRE_ARCHIVO_ENTRADA);
+    sprintf(file_name, "%s%s", DIR_FILES, INPUT_FILE);
 
     FILE *f = fopen(file_name, "r");
     if (f == NULL) {
-        printf("[HELPER] ERROR: No se pudo abrir el archivo de prueba %s: %s\n", NOMBRE_ARCHIVO_ENTRADA, strerror(errno));
+        printf("[HELPER] ERROR: No se pudo abrir el archivo de prueba %s: %s\n", INPUT_FILE, strerror(errno));
         return 0;
     }
 
@@ -108,7 +108,7 @@ int read_input_txt(unsigned char *buffer, int height, int width) {
 
     fclose(f);
 
-    printf("[HELPER] Matriz leida del archivo %s:\n", NOMBRE_ARCHIVO_ENTRADA);
+    printf("[HELPER] Matriz leida del archivo %s:\n", INPUT_FILE);
     // imprimir_matriz((unsigned char*)buffer, alto, ancho);
 
     return 1;
@@ -143,7 +143,7 @@ int save_img_in_txt(const char *img_name, int height, int width) {
     make_files_directory();
 
     char ruta_imagen[PATH_MAX];
-    snprintf(ruta_imagen, sizeof(ruta_imagen), "%s%s", DIR_RESULTADOS, img_name);
+    snprintf(ruta_imagen, sizeof(ruta_imagen), "%s%s", DIR_FILES, img_name);
 
     // Decodificar JPEG usando libjpeg
     FILE *infile = fopen(ruta_imagen, "rb");
@@ -241,7 +241,7 @@ int save_img_in_txt(const char *img_name, int height, int width) {
 
     // Guardar en matriz_test.txt con el mismo formato que generar_archivo_matriz_test
     char ruta_salida[PATH_MAX];
-    snprintf(ruta_salida, sizeof(ruta_salida), "%s%s", DIR_RESULTADOS, NOMBRE_ARCHIVO_ENTRADA);
+    snprintf(ruta_salida, sizeof(ruta_salida), "%s%s", DIR_FILES, INPUT_FILE);
 
     FILE *out = fopen(ruta_salida, "w");
     if (!out) {
@@ -274,7 +274,7 @@ int convert_txt_to_jpg(const char *img_name) {
     make_files_directory();
 
     char ruta_txt[PATH_MAX];
-    snprintf(ruta_txt, sizeof(ruta_txt), "%s%s", DIR_RESULTADOS, NOMBRE_ARCHIVO_SALIDA);
+    snprintf(ruta_txt, sizeof(ruta_txt), "%s%s", DIR_FILES, OUTPUT_FILE);
 
     FILE *f = fopen(ruta_txt, "r");
     if (!f) {
@@ -386,7 +386,7 @@ int convert_txt_to_jpg(const char *img_name) {
     // Preparar salida
     const char *nombre_out = (img_name && img_name[0]) ? img_name : "result.jpg";
     char ruta_jpg[PATH_MAX];
-    snprintf(ruta_jpg, sizeof(ruta_jpg), "%s%s", DIR_RESULTADOS, nombre_out);
+    snprintf(ruta_jpg, sizeof(ruta_jpg), "%s%s", DIR_FILES, nombre_out);
 
     FILE *out = fopen(ruta_jpg, "wb");
     if (!out) {
