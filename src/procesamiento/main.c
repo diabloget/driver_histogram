@@ -52,6 +52,8 @@ int test_img() {
     if (!convertir_resultado_txt_a_jpg("result.jpg")) {
         printf("[TEST - MASTER] ADVERTENCIA: No se pudo exportar result.jpg\n");
     }
+
+    return 0;
 }
 
 int test_matriz() {

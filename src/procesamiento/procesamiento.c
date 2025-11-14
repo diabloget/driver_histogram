@@ -51,7 +51,7 @@ metrics_node procesar_porcion(unsigned char* porcion_imagen, int alto, int ancho
             for (int ki = -1; ki <= 1; ki++) {
                 for (int kj = -1; kj <= 1; kj++) {
                     // (i + ki) y (j + kj) son las coordenadas del pixel de la imagen original
-                    unsigned char valor_pixel = porcion_imagen[(i + ki) * alto + (j + kj)];
+                    unsigned char valor_pixel = porcion_imagen[(i + ki) * ancho + (j + kj)];
                     // (ki + 1) y (kj + 1) son las coordenadas de la mascara
                     int valor_mascara = mascara_sobel[(ki + 1) * 3 + (kj + 1)];
                     suma_parcial += (int)valor_pixel * valor_mascara;
