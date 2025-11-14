@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#define DIR_FILES "../files/" // Quitar ../ cuando se use en produccion
+#define DIR_FILES "../files/" 
 #define OUTPUT_FILE "output.txt"
 #define INPUT_FILE "input.txt"
 
@@ -20,8 +20,8 @@ int read_input_txt(unsigned char **buffer, int *height, int *width);
 void display_matrix(unsigned char *matrix, int height, int width);
 void display_int_matrix(int *matrix, int height, int width);
 
-// Funciones de prueba para cargar una imagen JPEG, y aplicar filtro sobel
-int save_img_in_txt(const char *img_name, int height, int width);
+// Funciones para cargar una imagen JPEG a formato txt y viceversa
+int save_img_in_txt(const char *img_name);
 int convert_txt_to_jpg(const char *img_name);
 
 #endif // EXTERNAL_FUNCTIONS_H
