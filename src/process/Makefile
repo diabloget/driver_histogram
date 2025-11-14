@@ -1,7 +1,8 @@
 # Makefile para el proyecto driver_histogram
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -O2 -g
-LIBS = -ljpeg
+PTHREAD = -pthread
+LIBS = -ljpeg $(PTHREAD)
 SRC := $(wildcard *.c)
 OBJDIR := obj
 OBJ := $(patsubst %.c,$(OBJDIR)/%.o,$(SRC))
@@ -18,7 +19,7 @@ $(TARGET): $(OBJ)
 
 $(OBJDIR)/%.o: %.c $(DEPS)
 	@mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(PTHREAD) -c $< -o $@
 
 test: $(TARGET)
 	@echo "Ejecutando $(TARGET) (timeout 5s)..."

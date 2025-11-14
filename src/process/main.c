@@ -40,7 +40,7 @@ int test_img() {
     }
 
     double net_latency = sim_latencia();
-    metrics_node received_metrics = process_image((unsigned char *)test_image, HEIGHT, WIDTH, gy_mask, net_latency);
+    metrics_node received_metrics = process_image((unsigned char *)test_image, HEIGHT, WIDTH, gx_mask, net_latency);
 
     printf("[TEST - MASTER] Simulacion finalizada.\n");
     print_metrics(received_metrics);
@@ -61,7 +61,7 @@ int test_matriz() {
     read_input_txt((unsigned char *)test_image, HEIGHT, WIDTH);
 
     double net_latency = sim_latencia();
-    metrics_node received_metrics = process_image((unsigned char *)test_image, HEIGHT, WIDTH, gy_mask, net_latency);
+    metrics_node received_metrics = process_image((unsigned char *)test_image, HEIGHT, WIDTH, gx_mask, net_latency);
 
     printf("[TEST - MASTER] Simulacion finalizada.\n");
     print_metrics(received_metrics);
@@ -75,7 +75,7 @@ int main(void)
 
     test_img();
 
-    test_matriz();
+    // test_matriz();
 
     return 0;
 }

@@ -6,13 +6,64 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sched.h>
+#include <errno.h>
 
 void print_mascara(int *mascara_sobel)
 {
-    printf("[TEST] Mascara Sobel recibida: \n");
+    printf("[PROCESS] Mascara Sobel recibida: \n");
     printf("\t%2d %2d %2d\n", mascara_sobel[0], mascara_sobel[1], mascara_sobel[2]);
     printf("\t%2d %2d %2d\n", mascara_sobel[3], mascara_sobel[4], mascara_sobel[5]);
     printf("\t%2d %2d %2d\n", mascara_sobel[6], mascara_sobel[7], mascara_sobel[8]);
+}
+
+/* Estructura y worker a nivel de fichero para evitar funciones anidadas. */
+typedef struct
+{
+    unsigned char *image_section;
+    int height;
+    int width;
+    int *sobel_mask;
+    int start_row; // inclusive
+    int end_row;   // inclusive
+    int *sobel_rst;
+    int thread_id;
+} worker_args;
+
+static void *worker_conv(void *arg)
+{
+    worker_args *a = (worker_args *)arg;
+    int tid = a->thread_id;
+    int cpu_before = -1;
+#ifdef __linux__
+    cpu_before = sched_getcpu();
+#endif
+    printf("\t[THREAD %2d] inicio rows %d..%d (cpu=%d)\n", tid, a->start_row, a->end_row, cpu_before);
+    for (int i = a->start_row; i <= a->end_row; i++)
+    {
+        for (int j = 1; j < a->width - 1; j++)
+        {
+            int partial_sum = 0;
+            for (int ki = -1; ki <= 1; ki++)
+            {
+                for (int kj = -1; kj <= 1; kj++)
+                {
+                    unsigned char image_pixel = a->image_section[(i + ki) * a->width + (j + kj)];
+                    int mask_value = a->sobel_mask[(ki + 1) * 3 + (kj + 1)];
+                    partial_sum += (int)image_pixel * mask_value;
+                }
+            }
+            a->sobel_rst[i * a->width + j] = partial_sum;
+        }
+    }
+    int cpu_after = -1;
+#ifdef __linux__
+    cpu_after = sched_getcpu();
+#endif
+    printf("\t[THREAD %2d] fin rows %d..%d (cpu=%d)\n", tid, a->start_row, a->end_row, cpu_after);
+    return NULL;
 }
 
 metrics_node process_image(unsigned char *image_section, int height, int width, int *sobel_mask, double net_latency)
@@ -25,53 +76,122 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     metrics.network_latency_t = net_latency;
     // Datos transferidos (porcion de imagen recibida)
     size_t img_bytes = (size_t)height * (size_t)width * sizeof(unsigned char);
-    size_t mask_bytes = 9 * sizeof(unsigned char);
+    /* sobel_mask es int*, por lo que la cantidad de bytes es 9 * sizeof(int) */
+    size_t mask_bytes = 9 * sizeof(int);
     metrics.data_transferred = (double)(img_bytes + mask_bytes);
 
     // 2. Iniciar el temporizador
     clock_t start = clock();
 
-    // printf("[TEST] Imagen (porcion) recibida: \n");
+    // printf("[PROCESS] Imagen (porcion) recibida: \n");
     // imprimir_matriz(porcion_imagen, alto, ancho);
 
     print_mascara(sobel_mask);
 
     // INICIO DE LA LOGIA DE CONVOLUCION
-    // 1. Reservar memoria para la imagen de resultado
-    int *sobel_rst = (int *)calloc(height * width, sizeof(int));
+    /* 1. Reservar memoria para la imagen de resultado */
+    int *sobel_rst = (int *)calloc((size_t)height * (size_t)width, sizeof(int));
     if (sobel_rst == NULL)
     {
-        printf("[TEST] ERROR: No se pudo reservar memoria para el resultado.\n");
+        printf("[PROCESS] ERROR: No se pudo reservar memoria para el resultado.\n");
         return metrics;
     }
 
-    // 2. Iterar sobre la imagen
-    for (int i = 1; i < height - 1; i++)
-    {
-        for (int j = 1; j < width - 1; j++)
-        {
-            int partial_sum = 0;
+    /* Paralelizar la convolución por filas usando pthreads. Cada hilo procesa
+       un rango de filas interiores: [1 .. height-2]. No hay solapamiento en
+       escritura, por lo que no se requieren locks. */
 
-            // 3. Aplicar el mascara de 3x3
-            for (int ki = -1; ki <= 1; ki++)
-            {
-                for (int kj = -1; kj <= 1; kj++)
-                {
-                    // (i + ki) y (j + kj) son las coordenadas del pixel de la imagen original
-                    unsigned char image_pixel = image_section[(i + ki) * width + (j + kj)];
-                    // (ki + 1) y (kj + 1) son las coordenadas de la mascara
-                    int mask_value = sobel_mask[(ki + 1) * 3 + (kj + 1)];
-                    partial_sum += (int)image_pixel * mask_value;
-                }
-            }
-            // 4. Guardar el resultado de la matriz de salida
-            sobel_rst[i * width + j] = partial_sum;
+    int available_cpus = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (available_cpus < 1)
+        available_cpus = 1;
+
+    /* Número de filas que realmente se procesan (sin bordes) */
+    int process_rows = (height > 2) ? (height - 2) : 0;
+
+    /* Por defecto usamos la cantidad de CPUs disponibles, pero permitimos
+       sobreescribir mediante la variable de entorno DRIVER_THREADS */
+    int num_threads = available_cpus;
+    char *env = getenv("DRIVER_THREADS");
+    if (env != NULL)
+    {
+        char *endptr = NULL;
+        errno = 0;
+        long v = strtol(env, &endptr, 10);
+        if (endptr != env && *endptr == '\0' && errno == 0 && v > 0)
+        {
+            num_threads = (int)v;
+            printf("[PROCESS] DRIVER_THREADS override detected: %ld\n", v);
+        }
+        else
+        {
+            printf("[PROCESS] WARNING: DRIVER_THREADS invalid ('%s'), usando valor por defecto %d\n", env, available_cpus);
+            num_threads = available_cpus;
         }
     }
 
-    // printf("[TEST] Resultado (Convolucion): \n");
-    // imprimir_matriz_int(resultado_sobel, alto, ancho);
+    /* No crear más hilos que filas útiles */
+    if (process_rows > 0 && num_threads > process_rows)
+        num_threads = process_rows;
+
+    /* Informar cuántos hilos se van a usar */
+    printf("[PROCESS] Núcleos disponibles: %d, hilos usados: %d\n", available_cpus, num_threads);
+
+    if (process_rows == 0)
+    {
+        /* Imagen demasiado pequeña - no hay píxeles a procesar dentro de los bordes */
+        save_output_txt(sobel_rst, height, width);
+        free(sobel_rst);
+        printf("[PROCESS] Imagen demasiado pequeña para procesar convolución.\n");
+        return metrics;
+    }
+
+    pthread_t *threads = (pthread_t *)malloc(sizeof(pthread_t) * num_threads);
+    worker_args *args = (worker_args *)malloc(sizeof(worker_args) * num_threads);
+    if (threads == NULL || args == NULL)
+    {
+        printf("[PROCESS] ERROR: No se pudo reservar memoria para hilos.\n");
+        free(threads);
+        free(args);
+        save_output_txt(sobel_rst, height, width);
+        free(sobel_rst);
+        return metrics;
+    }
+
+    int base_rows = process_rows / num_threads;
+    int remainder = process_rows % num_threads;
+    int current_row = 1; // empezamos en la fila 1 (dejamos la fila 0 sin procesar)
+
+    for (int t = 0; t < num_threads; t++)
+    {
+        int rows_for_thread = base_rows + (t < remainder ? 1 : 0);
+        args[t].image_section = image_section;
+        args[t].height = height;
+        args[t].width = width;
+        args[t].sobel_mask = sobel_mask;
+        args[t].thread_id = t;
+        args[t].start_row = current_row;
+        args[t].end_row = current_row + rows_for_thread - 1;
+        args[t].sobel_rst = sobel_rst;
+
+        current_row = args[t].end_row + 1;
+
+        if (pthread_create(&threads[t], NULL, worker_conv, &args[t]) != 0)
+        {
+            /* Si falla crear hilo, procesar secuencialmente el bloque en el hilo principal */
+            printf("[PROCESS] WARNING: fallo al crear hilo %d, ejecutando bloque en el hilo principal.\n", t);
+            worker_conv(&args[t]);
+        }
+    }
+
+    /* Unir hilos (join) */
+    for (int t = 0; t < num_threads; t++)
+    {
+        pthread_join(threads[t], NULL);
+    }
+
     save_output_txt(sobel_rst, height, width);
+    free(threads);
+    free(args);
     free(sobel_rst);
 
     // 3. Detener el temporizador
@@ -88,6 +208,6 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
         metrics.throughput = 0.0;
     }
 
-    printf("[TEST] Tarea de procesamiento completada\n");
+    printf("[PROCESS] Tarea de procesamiento completada\n");
     return metrics;
 }
