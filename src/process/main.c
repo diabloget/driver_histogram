@@ -5,51 +5,48 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define HEIGHT 512
+#define WIDTH 512
 
-#define ALTO_TEST 512
-#define ANCHO_TEST 512
+unsigned char test_image[HEIGHT][WIDTH];
 
-unsigned char imagen_test[ALTO_TEST][ANCHO_TEST];
-
-int mascara_gx[9] = {
+int gx_mask[9] = {
     -1, 0, 1,
     -2, 0, 2,
-    -1, 0, 1
-};
+    -1, 0, 1};
 
-int mascara_gy[9] = {
+int gy_mask[9] = {
     -1, -2, -1,
-     0,  0,  0,
-     1,  2,  1
-};
+    0, 0, 0,
+    1, 2, 1};
 
 double sim_latencia() {
-    int microsegundos = (rand() % 5001) + 1000; // Entre 1000 y 5000 microsegundos
-    return (double)microsegundos / 1e6; // Convertir a segundos
+    int ms = (rand() % 5001) + 1000; // Entre 1000 y 5000 microsegundos
+    return (double)ms / 1e6;         // Convertir a segundos
 }
 
 int test_img() {
     printf("\n --- TEST CON IMAGEN JPG --- \n");
     // Cargar la imagen desde archivos/, convertir a gris y guardarla como matriz_test.txt
-    if (!guardar_imagen_gris_en_matriz_test("image.jpg", ALTO_TEST, ANCHO_TEST)) {
+    if (!save_img_in_txt("image.jpg", HEIGHT, WIDTH)) {
         printf("[TEST - MASTER] ERROR: No se pudo preparar matriz_test.txt a partir de la imagen.\n");
         return 1;
     }
 
     // Leer la matriz generada en memoria
-    if (!leer_archivo_matriz_test((unsigned char*)imagen_test, ALTO_TEST, ANCHO_TEST)) {
+    if (!read_input_txt((unsigned char *)test_image, HEIGHT, WIDTH)) {
         printf("[TEST - MASTER] ERROR: No se pudo leer matriz_test.txt\n");
         return 1;
     }
 
-    double latencia_red = sim_latencia();
-    metrics_node metricas_recibidas = procesar_porcion((unsigned char*)imagen_test, ALTO_TEST, ANCHO_TEST, mascara_gy, latencia_red);
+    double net_latency = sim_latencia();
+    metrics_node received_metrics = process_image((unsigned char *)test_image, HEIGHT, WIDTH, gy_mask, net_latency);
 
     printf("[TEST - MASTER] Simulacion finalizada.\n");
-    print_metrics(metricas_recibidas);
+    print_metrics(received_metrics);
 
     // Convertir el resultado sobel a una imagen JPG para inspeccion
-    if (!convertir_resultado_txt_a_jpg("result.jpg")) {
+    if (!convert_txt_to_jpg("result.jpg")) {
         printf("[TEST - MASTER] ADVERTENCIA: No se pudo exportar result.jpg\n");
     }
 
@@ -59,20 +56,21 @@ int test_img() {
 int test_matriz() {
     printf("\n --- TEST CON MATRIZ DE PRUEBA --- \n");
     // Cargar la matriz de prueba desde matriz_test.txt
-    generar_archivo_matriz_test(ALTO_TEST, ANCHO_TEST);
+    make_input_txt(HEIGHT, WIDTH);
 
-    leer_archivo_matriz_test((unsigned char*)imagen_test, ALTO_TEST, ANCHO_TEST);
+    read_input_txt((unsigned char *)test_image, HEIGHT, WIDTH);
 
-    double latencia_red = sim_latencia();
-    metrics_node metricas_recibidas = procesar_porcion((unsigned char*)imagen_test, ALTO_TEST, ANCHO_TEST, mascara_gy, latencia_red);
+    double net_latency = sim_latencia();
+    metrics_node received_metrics = process_image((unsigned char *)test_image, HEIGHT, WIDTH, gy_mask, net_latency);
 
     printf("[TEST - MASTER] Simulacion finalizada.\n");
-    print_metrics(metricas_recibidas);
+    print_metrics(received_metrics);
 
     return 0;
 }
 
-int main(void) {
+int main(void)
+{
     printf("[TEST - MASTER] Iniciando simulacion de cluster...\n");
 
     test_img();
