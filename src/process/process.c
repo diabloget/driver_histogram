@@ -11,6 +11,10 @@
 #include <sched.h>
 #include <errno.h>
 
+#ifdef __linux__
+extern int sched_getcpu(void);
+#endif
+
 void print_mascara(int *mascara_sobel)
 {
     printf("[PROCESS] Mascara Sobel recibida: \n");
@@ -22,7 +26,7 @@ void print_mascara(int *mascara_sobel)
 /* Estructura y worker a nivel de fichero para evitar funciones anidadas. */
 typedef struct
 {
-    unsigned char *image_section;
+    unsigned char *padded_image;
     int height;
     int width;
     int *sobel_mask;
@@ -30,6 +34,7 @@ typedef struct
     int end_row;   // inclusive
     int *sobel_rst;
     int thread_id;
+    int padded_width;
 } worker_args;
 
 static void *worker_conv(void *arg)
@@ -43,14 +48,15 @@ static void *worker_conv(void *arg)
     printf("\t[THREAD %2d] inicio rows %d..%d (cpu=%d)\n", tid, a->start_row, a->end_row, cpu_before);
     for (int i = a->start_row; i <= a->end_row; i++)
     {
-        for (int j = 1; j < a->width - 1; j++)
+        for (int j = 0; j < a->width; j++)
         {
             int partial_sum = 0;
             for (int ki = -1; ki <= 1; ki++)
             {
                 for (int kj = -1; kj <= 1; kj++)
                 {
-                    unsigned char image_pixel = a->image_section[(i + ki) * a->width + (j + kj)];
+                    /* index into padded image: offset by +1 */
+                    unsigned char image_pixel = a->padded_image[(i + ki + 1) * a->padded_width + (j + kj + 1)];
                     int mask_value = a->sobel_mask[(ki + 1) * 3 + (kj + 1)];
                     partial_sum += (int)image_pixel * mask_value;
                 }
@@ -105,8 +111,9 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     if (available_cpus < 1)
         available_cpus = 1;
 
-    /* Número de filas que realmente se procesan (sin bordes) */
-    int process_rows = (height > 2) ? (height - 2) : 0;
+    /* Número de filas que realmente se procesan: ahora procesamos todas las
+       filas originales gracias al padding de 1 (evitamos el marco de ceros). */
+    int process_rows = (height > 0) ? height : 0;
 
     /* Por defecto usamos la cantidad de CPUs disponibles, pero permitimos
        sobreescribir mediante la variable de entorno DRIVER_THREADS */
@@ -136,13 +143,47 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     /* Informar cuántos hilos se van a usar */
     printf("[PROCESS] Núcleos disponibles: %d, hilos usados: %d\n", available_cpus, num_threads);
 
-    if (process_rows == 0)
+    if (process_rows == 0 || width <= 0)
     {
         /* Imagen demasiado pequeña - no hay píxeles a procesar dentro de los bordes */
         save_output_txt(sobel_rst, height, width);
         free(sobel_rst);
         printf("[PROCESS] Imagen demasiado pequeña para procesar convolución.\n");
         return metrics;
+    }
+
+    /* Crear imagen con padding=1 (replicar bordes) */
+    int p_h = height + 2;
+    int p_w = width + 2;
+    unsigned char *padded = (unsigned char *)malloc((size_t)p_h * (size_t)p_w * sizeof(unsigned char));
+    if (padded == NULL)
+    {
+        printf("[PROCESS] ERROR: No se pudo reservar memoria para la imagen padded.\n");
+        free(sobel_rst);
+        return metrics;
+    }
+
+    /* Rellenar el centro */
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            padded[(i + 1) * p_w + (j + 1)] = image_section[i * width + j];
+        }
+    }
+    /* Rellenar top/bottom rows (replicar borde) */
+    for (int j = 0; j < width; j++)
+    {
+        /* top row replicates first image row */
+        padded[0 * p_w + (j + 1)] = padded[1 * p_w + (j + 1)];
+        /* bottom row replicates last image row */
+        padded[(height + 1) * p_w + (j + 1)] = padded[height * p_w + (j + 1)];
+    }
+    /* Rellenar left/right columns (replicar) */
+    for (int i = 0; i < p_h; i++)
+    {
+        padded[i * p_w + 0] = padded[i * p_w + 1];
+        padded[i * p_w + (p_w - 1)] = padded[i * p_w + (p_w - 2)];
     }
 
     pthread_t *threads = (pthread_t *)malloc(sizeof(pthread_t) * num_threads);
@@ -159,15 +200,16 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
 
     int base_rows = process_rows / num_threads;
     int remainder = process_rows % num_threads;
-    int current_row = 1; // empezamos en la fila 1 (dejamos la fila 0 sin procesar)
+    int current_row = 0; // empezamos en la fila 0 (padding permite procesar bordes)
 
     for (int t = 0; t < num_threads; t++)
     {
         int rows_for_thread = base_rows + (t < remainder ? 1 : 0);
-        args[t].image_section = image_section;
-        args[t].height = height;
-        args[t].width = width;
-        args[t].sobel_mask = sobel_mask;
+    args[t].padded_image = padded;
+    args[t].padded_width = p_w;
+    args[t].height = height;
+    args[t].width = width;
+    args[t].sobel_mask = sobel_mask;
         args[t].thread_id = t;
         args[t].start_row = current_row;
         args[t].end_row = current_row + rows_for_thread - 1;
@@ -192,6 +234,7 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     save_output_txt(sobel_rst, height, width);
     free(threads);
     free(args);
+    free(padded);
     free(sobel_rst);
 
     // 3. Detener el temporizador
