@@ -256,6 +256,8 @@ metrics_node process(int *sobel_mask) {
     // Procesar la imagen con el filtro Sobel
     metrics = process_image(txt_image, h, w, sobel_mask, net_latency);
 
+    print_metrics(metrics);
+
     // Liberar memoria de la imagen leída
     free(txt_image);
 
