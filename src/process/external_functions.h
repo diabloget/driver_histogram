@@ -3,14 +3,15 @@
 
 #include <stdio.h>
 
-#define DIR_FILES "../files/" 
+#define DIR_FILES "../files/"
 #define OUTPUT_FILE "output.txt"
 #define INPUT_FILE "input.txt"
 
+// Función para crear el directorio de archivos si no existe
 void make_files_directory();
 
 // Funcion de prueba para generar un archivo de matriz de prueba
-void make_input_txt(int height, int width);
+void make_random_matrix(int height, int width);
 
 // Funciones para guardar y leer archivos de matriz
 void save_output_txt(int *matrix, int height, int width);

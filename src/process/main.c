@@ -17,26 +17,30 @@ int gy_mask[9] = {
     0, 0, 0,
     1, 2, 1};
 
-double sim_latencia() {
+double set_latencia() {
     int ms = (rand() % 5001) + 1000; // Entre 1000 y 5000 microsegundos
     return (double)ms / 1e6;         // Convertir a segundos
 }
 
 int test_img() {
     printf("\n --- TEST CON IMAGEN JPG --- \n");
-    if (!save_img_in_txt("image.jpg")) {
+    // Preparar la matriz_test.txt a partir de una imagen JPG
+    // Cambiar por el nombre de una imagen JPG válida en la carpeta files
+    if (!save_img_in_txt("image1.jpg")) {
         printf("[TEST - MASTER] ERROR: No se pudo preparar matriz_test.txt a partir de la imagen.\n");
         return 1;
     }
 
     int h = 0, w = 0;
+    // Leer la matriz generada en memoria (read header + matrix)
     if (!read_input_txt(&test_image, &h, &w)) {
         printf("[TEST - MASTER] ERROR: No se pudo leer matriz_test.txt\n");
         return 1;
     }
 
-    double net_latency = sim_latencia();
-    metrics_node received_metrics = process_image(test_image, h, w, gx_mask, net_latency);
+    double net_latency = set_latencia();
+    // Procesar la imagen con el filtro Sobel
+    metrics_node received_metrics = process_image(test_image, h, w, gy_mask, net_latency);
 
     printf("[TEST - MASTER] Simulacion finalizada.\n");
     print_metrics(received_metrics);
@@ -46,6 +50,7 @@ int test_img() {
         printf("[TEST - MASTER] ADVERTENCIA: No se pudo exportar result.jpg\n");
     }
 
+    // Liberar memoria
     free(test_image);
 
     return 0;
