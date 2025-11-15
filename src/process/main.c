@@ -25,8 +25,7 @@ double set_latencia() {
 int test_img() {
     printf("\n --- TEST CON IMAGEN JPG --- \n");
     // Preparar la matriz_test.txt a partir de una imagen JPG
-    // Cambiar por el nombre de una imagen JPG válida en la carpeta files
-    if (!save_img_in_txt("image1.jpg")) {
+    if (!save_img_in_txt("image.jpg")) {
         printf("[TEST - MASTER] ERROR: No se pudo preparar matriz_test.txt a partir de la imagen.\n");
         return 1;
     }
