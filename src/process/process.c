@@ -17,7 +17,7 @@ extern int sched_getcpu(void);
 #endif
 
 void print_mascara(int *mascara_sobel) {
-    printf("[PROCESS] Mascara Sobel recibida: \n");
+    printf("\n[PROCESS] Mascara Sobel recibida: \n");
     printf("\t%2d %2d %2d\n", mascara_sobel[0], mascara_sobel[1], mascara_sobel[2]);
     printf("\t%2d %2d %2d\n", mascara_sobel[3], mascara_sobel[4], mascara_sobel[5]);
     printf("\t%2d %2d %2d\n", mascara_sobel[6], mascara_sobel[7], mascara_sobel[8]);
@@ -71,7 +71,7 @@ static void *process_image_worker(void *arg) {
 
 // Función principal para procesar una sección de imagen con el filtro Sobel
 metrics_node process_image(unsigned char *image_section, int height, int width, int *sobel_mask, double net_latency) {
-    printf("[PROCESS] Iniciando procesamiento de seccion de imagen (%dx%d)...\n", width, height);
+    printf("\n[PROCESS] Iniciando procesamiento de seccion de imagen (%dx%d)...\n", width, height);
     // 1. Inicializar métricas 
     metrics_node metrics = {0.0, 0.0, 0.0, 0.0};
 
@@ -123,7 +123,7 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
 
     if (process_rows > 0 && num_threads > process_rows) num_threads = process_rows;
 
-    printf("[PROCESS] Núcleos disponibles: %d, hilos usados: %d\n", available_cpus, num_threads);
+    printf("\n[PROCESS] Núcleos disponibles: %d, hilos usados: %d\n", available_cpus, num_threads);
 
     if (process_rows == 0 || width <= 0) {
         // Imagen vacía, nada que procesar
@@ -230,7 +230,7 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     }
 
     // 9. Retornar las métricas obtenidas
-    printf("[PROCESS] Tarea de procesamiento completada\n");
+    printf("\n[PROCESS] Tarea de procesamiento completada\n");
     return metrics;
 }
 
