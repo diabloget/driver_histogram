@@ -234,23 +234,29 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     return metrics;
 }
 
-
+// Función principal para el procesamiento de la imagen completa
 metrics_node process(int *sobel_mask) {
+    // Inicializar variables
     unsigned char *txt_image = NULL;
     int h = 0, w = 0;
 
+    // Inicializar métricas
     metrics_node metrics = {0.0, 0.0, 0.0, 0.0};
 
+    // Leer la imagen de entrada desde el archivo de texto
     if (!read_input_txt(&txt_image, &h, &w)) {
         printf("[PROCESS] ERROR: No se pudo leer la imagen de entrada.\n");
         metrics = (metrics_node){-1.0, -1.0, -1.0, -1.0};
         return metrics;
     }
 
-    double net_latency = (rand() % 5001 + 1000) / 1e6; // Latencia entre 1ms y 5ms
+    // Simular latencia de red aleatoria entre 1ms y 6ms
+    double net_latency = (rand() % 5001 + 1000) / 1e6; 
 
+    // Procesar la imagen con el filtro Sobel
     metrics = process_image(txt_image, h, w, sobel_mask, net_latency);
 
+    // Liberar memoria de la imagen leída
     free(txt_image);
 
     return metrics;
