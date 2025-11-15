@@ -17,29 +17,17 @@ int gy_mask[9] = {
     0, 0, 0,
     1, 2, 1};
 
-double set_latencia() {
-    int ms = (rand() % 5001) + 1000; // Entre 1000 y 5000 microsegundos
-    return (double)ms / 1e6;         // Convertir a segundos
-}
+int test_process() {
+    printf("\n --- TEST DE FUNCION PROCESS --- \n");
 
-int test_img() {
-    printf("\n --- TEST CON IMAGEN JPG --- \n");
     // Preparar la matriz_test.txt a partir de una imagen JPG
     if (!save_img_in_txt("image.jpg")) {
         printf("[TEST - MASTER] ERROR: No se pudo preparar matriz_test.txt a partir de la imagen.\n");
         return 1;
     }
 
-    int h = 0, w = 0;
-    // Leer la matriz generada en memoria (read header + matrix)
-    if (!read_input_txt(&test_image, &h, &w)) {
-        printf("[TEST - MASTER] ERROR: No se pudo leer matriz_test.txt\n");
-        return 1;
-    }
-
-    double net_latency = set_latencia();
     // Procesar la imagen con el filtro Sobel
-    metrics_node received_metrics = process_image(test_image, h, w, gy_mask, net_latency);
+    metrics_node received_metrics = process(gy_mask);
 
     printf("[TEST - MASTER] Simulacion finalizada.\n");
     print_metrics(received_metrics);
@@ -58,7 +46,7 @@ int test_img() {
 int main(void) {
     printf("[TEST - MASTER] Iniciando simulacion de cluster...\n");
 
-    test_img();
+    test_process();
 
     return 0;
 }

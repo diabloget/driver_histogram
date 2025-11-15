@@ -233,3 +233,25 @@ metrics_node process_image(unsigned char *image_section, int height, int width, 
     printf("[PROCESS] Tarea de procesamiento completada\n");
     return metrics;
 }
+
+
+metrics_node process(int *sobel_mask) {
+    unsigned char *txt_image = NULL;
+    int h = 0, w = 0;
+
+    metrics_node metrics = {0.0, 0.0, 0.0, 0.0};
+
+    if (!read_input_txt(&txt_image, &h, &w)) {
+        printf("[PROCESS] ERROR: No se pudo leer la imagen de entrada.\n");
+        metrics = (metrics_node){-1.0, -1.0, -1.0, -1.0};
+        return metrics;
+    }
+
+    double net_latency = (rand() % 5001 + 1000) / 1e6; // Latencia entre 1ms y 5ms
+
+    metrics = process_image(txt_image, h, w, sobel_mask, net_latency);
+
+    free(txt_image);
+
+    return metrics;
+}
