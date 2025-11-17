@@ -1,0 +1,25 @@
+obj-m += driver.o
+
+KDIR := /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
+LCD_ADDR := 0x27
+
+all:
+	make -C $(KDIR) M=$(PWD) modules
+
+clean:
+	make -C $(KDIR) M=$(PWD) clean
+
+install:
+	sudo insmod driver.ko
+	sleep 1
+	@echo "lcd_i2c $(LCD_ADDR)" | sudo tee /sys/bus/i2c/devices/i2c-1/new_device > /dev/null
+	sudo chmod 666 /dev/driver
+	@echo "LCD driver instalado en /dev/driver"
+
+uninstall:
+	@if [ -e /sys/bus/i2c/devices/1-00$(shell printf '%x' $(LCD_ADDR))/delete_device ]; then \
+		echo $(LCD_ADDR) | sudo tee /sys/bus/i2c/devices/i2c-1/delete_device > /dev/null; \
+	fi
+	sudo rmmod driver
+	@echo "LCD driver desinstalado"
