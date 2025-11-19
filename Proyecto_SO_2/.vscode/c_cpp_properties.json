@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/**",
+        "/usr/include",
+        "/usr/local/include",
+        "/usr/lib/x86_64-linux-gnu/openmpi/include",   // ruta típica de mpi.h
+        "/usr/include"                                  // jpeglib.h suele estar aquí
+      ],
+      "compilerPath": "/usr/bin/mpicc",
+      "cStandard": "c11",
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ],
+  "version": 4
+}
