@@ -344,7 +344,7 @@ int cluster_run(const char *img_path, const char *kernel_str)
 
         // --- 3. Distribuir trabajo entre esclavos ---
         int workers = size - 1;
-        if (workers > 3) workers = 3; // tu requisito: 1–3 esclavos
+        if (workers > 3) workers = 3; 
         if (workers > H) workers = H; // no más esclavos que filas
 
         printf("[MASTER] Trabajadores usados: %d (de %d procesos totales)\n", workers, size);
@@ -374,9 +374,9 @@ int cluster_run(const char *img_path, const char *kernel_str)
             rows_for_worker[w]  = rows;
             start_for_worker[w] = start_row;
 
-            // Meta: [W, rows] y una latencia simulada
+            // Meta: [W, rows] 
             int meta[2] = { W, rows };
-            double net_latency = (double)(1000 + rand() % 5001) / 1e6; // 1–6 ms
+            double net_latency = 0; // Preguntar profe x esta latencia
 
             MPI_Send(meta, 2, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
             MPI_Send(&net_latency, 1, MPI_DOUBLE, w, TAG_META, MPI_COMM_WORLD);
