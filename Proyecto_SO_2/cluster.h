@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "metrics.h"   // métricas
+#include "histogram_lib.h"
 
 // ---------------------------------------------------------------------
 // Funciones núcleo del clúster

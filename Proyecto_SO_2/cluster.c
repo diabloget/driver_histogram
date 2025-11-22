@@ -489,16 +489,6 @@ int cluster_run(const char *img_path, const char *kernel_str)
     MPI_Recv(sobel_gx, 9, MPI_INT, 0, TAG_META, MPI_COMM_WORLD, &st);
     MPI_Recv(sobel_gy, 9, MPI_INT, 0, TAG_META, MPI_COMM_WORLD, &st);
 
-    double net_latency;
-    MPI_Recv(&net_latency, 1, MPI_DOUBLE, 0, TAG_META, MPI_COMM_WORLD, &st);
-
-    // Si W <= 0 significa "no hay trabajo" para este proceso
-    if (W <= 0 || rows <= 0) {
-        double zeros[4] = {0,0,0,0};
-        MPI_Send(zeros, 4, MPI_DOUBLE, 0, TAG_DONE, MPI_COMM_WORLD);
-        return 0;
-    }
-
     size_t n = (size_t)W * (size_t)rows;
     unsigned char *section = (unsigned char*)malloc(n);
     if (!section) {
@@ -508,10 +498,24 @@ int cluster_run(const char *img_path, const char *kernel_str)
         return 0;
     }
 
+    // Declarar la variable de latencia antes de usarla
+    double net_latency = 0.0;
+
+    // primero recibe la imagen
     MPI_Recv(section, (int)n, MPI_UNSIGNED_CHAR, 0, TAG_DATA, MPI_COMM_WORLD, &st);
+
+    // Luego recibir la latencia medida
+    MPI_Recv(&net_latency, 1, MPI_DOUBLE, 0, TAG_META, MPI_COMM_WORLD, &st);
 
     printf("[WORKER %d] Recibido bloque %dx%d (lat=%.6f s)\n",
            rank, W, rows, net_latency);
+
+    // Si W <= 0 significa "no hay trabajo" para este proceso
+    if (W <= 0 || rows <= 0) {
+        double zeros[4] = {0,0,0,0};
+        MPI_Send(zeros, 4, MPI_DOUBLE, 0, TAG_DONE, MPI_COMM_WORLD);
+        return 0;
+    }
 
     // ---- Usar lógica de procesamiento (process_image) con Gx y Gy ----
     metrics_node m = process_image(section, rows, W, sobel_gx, sobel_gy, net_latency);

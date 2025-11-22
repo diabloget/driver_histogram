@@ -113,6 +113,7 @@
         "types.h": "c",
         "inttypes.h": "c",
         "cluster.h": "c",
-        "VALIDAR.C": "cpp"
+        "VALIDAR.C": "cpp",
+        "histogram_lib.h": "c"
     }
 }
