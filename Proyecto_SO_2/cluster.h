@@ -38,7 +38,7 @@ int write_hist_csv(const char *fname, const uint64_t hist[256]);
 // Punto de entrada lógico del clúster
 // (MPI YA debe estar inicializado desde main())
 // - img_path: ruta de la imagen
-// - kernel_str: máscara Sobel "[a,b,c,d,e,f,g,h,i]"
+// - kernel_str: máscaras Sobel en formato "x=[...] y=[...]"
 // ---------------------------------------------------------------------
 int cluster_run(const char *img_path, const char *kernel_str);
 

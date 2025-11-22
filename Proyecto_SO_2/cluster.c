@@ -71,7 +71,7 @@ int parse_kernel9(const char *s, int K[3][3]) {
 }
 
 /*
- * Nuevo: parse_sobel_xy
+ * parse_sobel_xy
  * Espera un string del estilo:
  *
  *   x=[a,b,c,d,e,f,g,h,i] y=[j,k,l,m,n,o,p,q,r]
@@ -227,25 +227,6 @@ int write_hist_csv(const char *fname, const uint64_t hist[256]) {
 }
 
 // ---------------------------------------------------------------------
-// histdev_write viene de cluster_iniciador.c (socket a ESP32 / Raspberry)
-// ---------------------------------------------------------------------
-extern int histdev_write(const uint8_t *data, size_t len);
-
-// Empaca el histograma u64 en bytes y lo manda al dispositivo externo
-static int device_send_histogram(const uint64_t hist[256]){
-    uint8_t buf[256*8];
-
-    for (int i = 0; i < 256; i++) {
-        uint64_t v = hist[i];
-        for (int k = 0; k < 8; k++)
-            buf[i*8+k] = (uint8_t)((v >> (8*k)) & 0xFF);
-    }
-
-    printf("[HW] Enviando histograma al dispositivo externo...\n");
-    return histdev_write(buf, sizeof(buf));
-}
-
-// ---------------------------------------------------------------------
 // Helper: leer archivo de texto completo en memoria
 // ---------------------------------------------------------------------
 static char *read_text_file(const char *path) {
@@ -376,17 +357,22 @@ int cluster_run(const char *img_path, const char *kernel_str)
 
             // Meta: [W, rows] 
             int meta[2] = { W, rows };
-            double net_latency = 0; // Preguntar profe x esta latencia
 
-            MPI_Send(meta, 2, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
-            MPI_Send(&net_latency, 1, MPI_DOUBLE, w, TAG_META, MPI_COMM_WORLD);
-            MPI_Send(sobel_gx, 9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
-            MPI_Send(sobel_gy, 9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            // 3.1 Enviar meta y kernels
+            MPI_Send(meta,      2, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            MPI_Send(sobel_gx,  9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            MPI_Send(sobel_gy,  9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
 
-            // Enviar subimagen
+            // 3.2 Enviar subimagen midiendo latencia REAL con MPI_Wtime()
             size_t n = (size_t)rows * (size_t)W;
+            double t0 = MPI_Wtime();
             MPI_Send(&gray[start_row * W], (int)n, MPI_UNSIGNED_CHAR,
                      w, TAG_DATA, MPI_COMM_WORLD);
+            double t1 = MPI_Wtime();
+            double net_latency = t1 - t0;
+
+            // 3.3 Enviar al worker la latencia medida
+            MPI_Send(&net_latency, 1, MPI_DOUBLE, w, TAG_META, MPI_COMM_WORLD);
 
             printf("[MASTER] Enviado bloque filas [%d..%d] al worker %d (lat=%.6f s)\n",
                    start_row, start_row + rows - 1, w, net_latency);
@@ -395,13 +381,13 @@ int cluster_run(const char *img_path, const char *kernel_str)
         // Los procesos extra (si size-1 > workers) reciben un mensaje vacío
         for (int w = workers + 1; w < size; ++w) {
             int meta[2] = { -1, 0 }; // W=-1 => no trabajo
-            double dummy = 0.0;
+            double dummy_lat = 0.0;
             int zeros[9] = {0};
 
-            MPI_Send(meta, 2, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
-            MPI_Send(&dummy, 1, MPI_DOUBLE, w, TAG_META, MPI_COMM_WORLD);
-            MPI_Send(zeros, 9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
-            MPI_Send(zeros, 9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            MPI_Send(meta,      2, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            MPI_Send(zeros,     9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            MPI_Send(zeros,     9, MPI_INT, w, TAG_META, MPI_COMM_WORLD);
+            MPI_Send(&dummy_lat,1, MPI_DOUBLE, w, TAG_META, MPI_COMM_WORLD);
         }
 
         // --- 4. Recibir métricas y resultados de cada worker ---
@@ -429,7 +415,7 @@ int cluster_run(const char *img_path, const char *kernel_str)
             MPI_Recv(&sobel_full[start_row * W],
                      (int)n,
                      MPI_INT,
-                     w,
+                     0,   // fuente es worker w
                      TAG_RESULT,
                      MPI_COMM_WORLD,
                      &st);
@@ -442,7 +428,7 @@ int cluster_run(const char *img_path, const char *kernel_str)
         // Esto genera un txt en ../files/sobel_full.txt con el formato esperado
         save_output_txt_as("sobel_full.txt", sobel_full, H, W);
 
-        // --- 6. Generar histograma sobre la imagen Sobel y conectarlo a LCD + ESP32 ---
+        // --- 6. Generar histograma sobre la imagen Sobel y conectarlo a la LCD ---
         char sobel_path[PATH_MAX];
         snprintf(sobel_path, sizeof(sobel_path), "%s%s", DIR_FILES, "sobel_full.txt");
 
@@ -462,18 +448,17 @@ int cluster_run(const char *img_path, const char *kernel_str)
                     move_auto(&index);
                 }
 
-                // 6.2 Enviar histograma al dispositivo externo (ESP32/RPi)
+                // 6.2 Guardar también CSV por si el profe quiere ver
                 uint64_t hist64[256];
                 for (int i = 0; i < 256; ++i) {
                     hist64[i] = (hist_full[i] < 0) ? 0 : (uint64_t)hist_full[i];
                 }
 
-                // Guardar también CSV por si el profe quiere ver
                 char hist_csv[512];
                 snprintf(hist_csv, sizeof(hist_csv), "%s/histogram_sobel.csv", OUTPUT_DIR);
                 write_hist_csv(hist_csv, hist64);
 
-                device_send_histogram(hist64);
+                printf("[MASTER] Histograma Sobel guardado en %s\n", hist_csv);
             }
 
             free(sobel_text);
@@ -493,18 +478,19 @@ int cluster_run(const char *img_path, const char *kernel_str)
     int meta[2];
     MPI_Status st;
 
+    // Recibir meta (W, rows) y kernels
     MPI_Recv(meta, 2, MPI_INT, 0, TAG_META, MPI_COMM_WORLD, &st);
 
-    int W = meta[0];
+    int W    = meta[0];
     int rows = meta[1];
-
-    double net_latency;
-    MPI_Recv(&net_latency, 1, MPI_DOUBLE, 0, TAG_META, MPI_COMM_WORLD, &st);
 
     int sobel_gx[9];
     int sobel_gy[9];
     MPI_Recv(sobel_gx, 9, MPI_INT, 0, TAG_META, MPI_COMM_WORLD, &st);
     MPI_Recv(sobel_gy, 9, MPI_INT, 0, TAG_META, MPI_COMM_WORLD, &st);
+
+    double net_latency;
+    MPI_Recv(&net_latency, 1, MPI_DOUBLE, 0, TAG_META, MPI_COMM_WORLD, &st);
 
     // Si W <= 0 significa "no hay trabajo" para este proceso
     if (W <= 0 || rows <= 0) {
