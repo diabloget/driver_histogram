@@ -14,54 +14,123 @@
 //       x=[-1,0,1,-2,0,2,-1,0,1] y=[1,2,1,0,0,0,-1,-2,-1]
 // y luego las difunde vía MPI_Bcast a todos los ranks.
 // ---------------------------------------------------------------------
-static void leer_parametros_desde_stdin(char *img_path, size_t img_sz,
-                                        char *kernel_str, size_t kernel_sz)
+// Parsea una lista de 9 enteros (se aceptan separadores ',' y espacios)
+static int parse_vector9(const char *s, int out[9])
 {
-    char buf_img[512];
-    char buf_kernel[512];
+    if (!s)
+        return -1;
+    const char *p = s;
+    int idx = 0;
+    char *end;
+    while (*p && idx < 9)
+    {
+        // buscar el inicio de un número
+        while (*p && !((*p >= '0' && *p <= '9') || *p == '-'))
+            p++;
+        if (!*p)
+            break;
+        long v = strtol(p, &end, 10);
+        if (p == end)
+            break;
+        out[idx++] = (int)v;
+        p = end;
+    }
+    return (idx == 9) ? 0 : -1;
+}
 
-    printf("\n=== Configuración del clúster Sobel ===\n");
-
-    // Ruta de la imagen
-    printf("Ruta de la imagen (ej: ../files/foto.jpg): ");
-    fflush(stdout);
-    if (!fgets(buf_img, sizeof(buf_img), stdin)) {
-        fprintf(stderr, "Error leyendo ruta de imagen por stdin.\n");
+// Lee el archivo .config en el directorio actual. Formato esperado:
+// image=path/to/img.jpg
+// x=-1,0,1,-2,0,2,-1,0,1
+// y=-1,-2,-1,0,0,0,1,2,1
+static void leer_parametros_desde_config(const char *config_path,
+                                         char *img_path, size_t img_sz,
+                                         char *kernel_str, size_t kernel_sz)
+{
+    FILE *f = fopen(config_path, "r");
+    if (!f)
+    {
+        fprintf(stderr, "[MASTER] No se encontró el archivo de configuración '%s'\n", config_path);
         exit(EXIT_FAILURE);
     }
-    // Quitar '\n'
-    buf_img[strcspn(buf_img, "\r\n")] = '\0';
 
-    if (buf_img[0] == '\0') {
-        fprintf(stderr, "Ruta de imagen vacía.\n");
+    char line[512];
+    char image_buf[512] = {0};
+    int Kx[9];
+    int Ky[9];
+    int have_x = 0, have_y = 0, have_img = 0;
+
+    while (fgets(line, sizeof(line), f))
+    {
+        // trim leading spaces
+        char *p = line;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == '\0' || *p == '\n' || *p == '#')
+            continue;
+        // find '='
+        char *eq = strchr(p, '=');
+        if (!eq)
+            continue;
+        *eq = '\0';
+        char *key = p;
+        char *val = eq + 1;
+        // trim trailing newline
+        val[strcspn(val, "\r\n")] = '\0';
+
+        // key trim
+        char *kend = key + strlen(key) - 1;
+        while (kend > key && (*kend == ' ' || *kend == '\t'))
+        {
+            *kend = '\0';
+            kend--;
+        }
+
+        if (strcmp(key, "image") == 0)
+        {
+            strncpy(image_buf, val, sizeof(image_buf) - 1);
+            image_buf[sizeof(image_buf) - 1] = '\0';
+            have_img = 1;
+        }
+        else if (strcmp(key, "x") == 0)
+        {
+            if (parse_vector9(val, Kx) == 0)
+                have_x = 1;
+        }
+        else if (strcmp(key, "y") == 0)
+        {
+            if (parse_vector9(val, Ky) == 0)
+                have_y = 1;
+        }
+    }
+    fclose(f);
+
+    if (!have_img)
+    {
+        fprintf(stderr, "[MASTER] .config no contiene 'image='\n");
+        exit(EXIT_FAILURE);
+    }
+    if (!have_x || !have_y)
+    {
+        fprintf(stderr, "[MASTER] .config debe contener 'x=' y 'y=' con 9 valores cada una\n");
         exit(EXIT_FAILURE);
     }
 
-    // Línea completa de máscaras en formato x=[...] y=[...]
-    printf("Máscaras Sobel en formato x=[...] y=[...]\n");
-    printf("Ejemplo: x=[-1,0,1,-2,0,2,-1,0,1] y=[1,2,1,0,0,0,-1,-2,-1]\n");
-    printf("Ingrese la línea: ");
-    fflush(stdout);
-    if (!fgets(buf_kernel, sizeof(buf_kernel), stdin)) {
-        fprintf(stderr, "Error leyendo máscara Sobel por stdin.\n");
-        exit(EXIT_FAILURE);
-    }
-    buf_kernel[strcspn(buf_kernel, "\r\n")] = '\0';
+    // preparar kernel_str en el formato esperado por el parser existente
+    char bufk[512];
+    int o = snprintf(bufk, sizeof(bufk), "x=[%d,%d,%d,%d,%d,%d,%d,%d,%d] ",
+                     Kx[0], Kx[1], Kx[2], Kx[3], Kx[4], Kx[5], Kx[6], Kx[7], Kx[8]);
+    snprintf(bufk + o, sizeof(bufk) - (size_t)o,
+             "y=[%d,%d,%d,%d,%d,%d,%d,%d,%d]",
+             Ky[0], Ky[1], Ky[2], Ky[3], Ky[4], Ky[5], Ky[6], Ky[7], Ky[8]);
 
-    if (buf_kernel[0] == '\0') {
-        fprintf(stderr, "Máscara Sobel vacía.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Copiar a buffers de salida
-    strncpy(img_path, buf_img, img_sz - 1);
+    strncpy(img_path, image_buf, img_sz - 1);
     img_path[img_sz - 1] = '\0';
 
-    strncpy(kernel_str, buf_kernel, kernel_sz - 1);
+    strncpy(kernel_str, bufk, kernel_sz - 1);
     kernel_str[kernel_sz - 1] = '\0';
 
-    printf("\n[MASTER stdin] Imagen  : '%s'\n", img_path);
-    printf("[MASTER stdin] Máscaras: '%s'\n\n", kernel_str);
+    printf("\n[MASTER config] Imagen  : '%s'\n", img_path);
+    printf("[MASTER config] Máscaras: '%s'\n\n", kernel_str);
 }
 
 int main(int argc, char **argv)
@@ -73,17 +142,19 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    char img_path[512]   = {0};
+    char img_path[512] = {0};
     char kernel_str[256] = {0};
 
-    // 2. Solo el rank 0 pregunta al usuario por stdin
-    if (rank == 0) {
-        leer_parametros_desde_stdin(img_path, sizeof(img_path),
-                                    kernel_str, sizeof(kernel_str));
+    // 2. Solo el rank 0 lee los parámetros desde el archivo .config
+    if (rank == 0)
+    {
+        const char *cfg = ".config";
+        leer_parametros_desde_config(cfg, img_path, sizeof(img_path),
+                                     kernel_str, sizeof(kernel_str));
     }
 
-    // 3. Difundir parámetros a todos los procesos vía MPI 
-    MPI_Bcast(img_path,   (int)sizeof(img_path),   MPI_CHAR, 0, MPI_COMM_WORLD);
+    // 3. Difundir parámetros a todos los procesos vía MPI
+    MPI_Bcast(img_path, (int)sizeof(img_path), MPI_CHAR, 0, MPI_COMM_WORLD);
     MPI_Bcast(kernel_str, (int)sizeof(kernel_str), MPI_CHAR, 0, MPI_COMM_WORLD);
 
     // 4. Ejecutar el clúster MPI con los parámetros recibidos
