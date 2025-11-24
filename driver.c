@@ -66,8 +66,8 @@ static void lcd_pulse_enable(struct lcd_dev *lcd, u8 data)
     udelay(50);
 }
 
-// Write 4 bits to LCD 
-static void lcd_write_4bits(struct lcd_dev *lcd, u8 value, u8 mode)
+// Write bits to LCD 
+static void lcd_write(struct lcd_dev *lcd, u8 value, u8 mode)
 {
     u8 data = (value & 0xF0) | mode;
     lcd_write_byte(lcd, data);
@@ -77,8 +77,8 @@ static void lcd_write_4bits(struct lcd_dev *lcd, u8 value, u8 mode)
 // Send command or data to LCD 
 static void lcd_send(struct lcd_dev *lcd, u8 value, u8 mode)
 {
-    lcd_write_4bits(lcd, value & 0xF0, mode);
-    lcd_write_4bits(lcd, value << 4, mode);
+    lcd_write(lcd, value & 0xF0, mode);
+    lcd_write(lcd, value << 4, mode);
 }
 
 // Send command 
@@ -107,13 +107,13 @@ static int lcd_init(struct lcd_dev *lcd)
     // Wait for LCD to power up 
     mdelay(50);
 
-    // Initialize in 4-bit mode 
-    lcd_write_4bits(lcd, 0x30, 0);
+    // Initialize 
+    lcd_write(lcd, 0x30, 0);
     mdelay(5);
-    lcd_write_4bits(lcd, 0x30, 0);
+    lcd_write(lcd, 0x30, 0);
     udelay(150);
-    lcd_write_4bits(lcd, 0x30, 0);
-    lcd_write_4bits(lcd, 0x20, 0);
+    lcd_write(lcd, 0x30, 0);
+    lcd_write(lcd, 0x20, 0);
 
     // Function set: 4-bit, 2 lines, 5x8 font 
     lcd_command(lcd, LCD_FUNCTION_SET | LCD_4BIT_MODE | LCD_2LINE | LCD_5x8DOTS);
@@ -190,7 +190,7 @@ static int lcd_open(struct inode *inode, struct file *file)
     return 0;
 }
 
-static ssize_t lcd_write(struct file *file, const char __user *buf, 
+static ssize_t lcd_writef(struct file *file, const char __user *buf, 
                          size_t count, loff_t *ppos)
 {
     struct lcd_dev *lcd = file->private_data;
@@ -249,8 +249,8 @@ static int lcd_release(struct inode *inode, struct file *file)
 static const struct file_operations lcd_fops = {
     .owner = THIS_MODULE,
     .open = lcd_open,
-    .write = lcd_write,
-    .unlocked_ioctl = lcd_ctrl,
+    .write = lcd_writef,
+    .unlocked_ctrl = lcd_ctrl,
     .release = lcd_release,
 };
 
