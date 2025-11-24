@@ -87,8 +87,7 @@ static void leer_parametros_desde_config(const char *config_path,
 
         if (strcmp(key, "image") == 0)
         {
-            strncpy(image_buf, val, sizeof(image_buf) - 1);
-            image_buf[sizeof(image_buf) - 1] = '\0';
+            snprintf(image_buf, sizeof(image_buf), "%s", val);
             have_img = 1;
         }
         else if (strcmp(key, "x") == 0)
@@ -116,18 +115,23 @@ static void leer_parametros_desde_config(const char *config_path,
     }
 
     // preparar kernel_str en el formato esperado por el parser existente
-    char bufk[512];
-    int o = snprintf(bufk, sizeof(bufk), "x=[%d,%d,%d,%d,%d,%d,%d,%d,%d] ",
-                     Kx[0], Kx[1], Kx[2], Kx[3], Kx[4], Kx[5], Kx[6], Kx[7], Kx[8]);
-    snprintf(bufk + o, sizeof(bufk) - (size_t)o,
-             "y=[%d,%d,%d,%d,%d,%d,%d,%d,%d]",
-             Ky[0], Ky[1], Ky[2], Ky[3], Ky[4], Ky[5], Ky[6], Ky[7], Ky[8]);
+    int o = snprintf(kernel_str, kernel_sz,
+                     "x=[%d,%d,%d,%d,%d,%d,%d,%d,%d] y=[%d,%d,%d,%d,%d,%d,%d,%d,%d]",
+                     Kx[0], Kx[1], Kx[2], Kx[3], Kx[4], Kx[5], Kx[6], Kx[7], Kx[8],
+                     Ky[0], Ky[1], Ky[2], Ky[3], Ky[4], Ky[5], Ky[6], Ky[7], Ky[8]);
 
-    strncpy(img_path, image_buf, img_sz - 1);
-    img_path[img_sz - 1] = '\0';
+    if (o < 0)
+    {
+        fprintf(stderr, "[MASTER] Error construyendo kernel string\n");
+        exit(EXIT_FAILURE);
+    }
+    if ((size_t)o >= kernel_sz)
+    {
+        fprintf(stderr, "[MASTER] Advertencia: kernel string truncado (longitud necesaria=%d, buf=%zu)\n", o, kernel_sz);
+        // continuar con la versión truncada
+    }
 
-    strncpy(kernel_str, bufk, kernel_sz - 1);
-    kernel_str[kernel_sz - 1] = '\0';
+    snprintf(img_path, img_sz, "%s", image_buf);
 
     printf("\n[MASTER config] Imagen  : '%s'\n", img_path);
     printf("[MASTER config] Máscaras: '%s'\n\n", kernel_str);
